@@ -1,0 +1,248 @@
+import java.io.*;
+import java.util.*;
+
+public class ExpenseTracker {
+
+    static final int MAX = 100;
+    static int[] ids = new int[MAX];
+    static String[] names = new String[MAX];
+    static String[] categories = new String[MAX];
+    static double[] amounts = new double[MAX];
+    static String[] dates = new String[MAX];
+
+    static int count = 0;
+    static double budget = 0;
+
+    static Scanner exp = new Scanner(System.in);
+
+    public static void main(String[] args) {
+
+        loadData();
+        loadBudget();
+
+        int choice;
+        do {
+            System.out.println("\n===============================");
+            System.out.println("       EXPENSE TRACKER");
+            System.out.println("===============================");
+            System.out.println("1. Add Expense");
+            System.out.println("2. View All Expenses");
+            System.out.println("3. Update Expense");
+            System.out.println("4. Delete Expense");
+            System.out.println("5. Set / Update Budget");
+            System.out.println("6. View Budget & Remaining");
+            System.out.println("0. Exit");
+            System.out.print("Choose option: ");
+            choice = exp.nextInt();
+            exp.nextLine();
+
+            switch (choice) {
+                case 1 -> addExpense();
+                case 2 -> viewExpenses();
+                case 3 -> updateExpense();
+                case 4 -> deleteExpense();
+                case 5 -> setBudget();
+                case 6 -> viewBudget();
+                case 0 -> saveAll();
+                default -> System.out.println("Invalid option!");
+            }
+
+        } while (choice != 0);
+    }
+
+    static void addExpense() {
+        if (count >= MAX) {
+            System.out.println("Limit reached!");
+            return;
+        }
+
+        System.out.print("Enter ID: ");
+        ids[count] = exp.nextInt();
+        exp.nextLine();
+
+        System.out.print("Enter Item Name: ");
+        names[count] = exp.nextLine();
+
+        System.out.print("Enter Category: ");
+        categories[count] = exp.nextLine();
+
+        System.out.print("Enter Amount (PHP): ");
+        amounts[count] = exp.nextDouble();
+        exp.nextLine();
+
+        System.out.print("Enter Date (YYYY-MM-DD): ");
+        dates[count] = exp.nextLine();
+
+        count++;
+        saveData();
+
+        checkBudgetReminder();
+
+        System.out.println("Expense added successfully!");
+    }
+
+    static void viewExpenses() {
+        if (count == 0) {
+            System.out.println("No expenses yet.");
+            return;
+        }
+
+        System.out.println("----- EXPENSE LIST -----");
+        double total = 0;
+
+        for (int i = 0; i < count; i++) {
+            System.out.println("-------------------------");
+            System.out.println("ID: " + ids[i]);
+            System.out.println("Name: " + names[i]);
+            System.out.println("Category: " + categories[i]);
+            System.out.println("Amount: PHP " + amounts[i]);
+            System.out.println("Date: " + dates[i]);
+            total += amounts[i];
+        }
+
+        System.out.println("\nTotal Spent: PHP " + total);
+        System.out.println("Remaining Budget: PHP " + (budget - total));
+    }
+
+    static void updateExpense() {
+        System.out.print("Enter Expense ID to update: ");
+        int searchID = exp.nextInt();
+        exp.nextLine();
+
+        int index = findId(searchID);
+
+        if (index == -1) {
+            System.out.println("Expense ID not found.");
+            return;
+        }
+
+        System.out.println("Updating Expense: " + names[index]);
+
+        System.out.print("New Name: ");
+        names[index] = exp.nextLine();
+
+        System.out.print("New Amount: ");
+        amounts[index] = exp.nextDouble();
+        exp.nextLine();
+
+        System.out.print("New Category: ");
+        categories[index] = exp.nextLine();
+
+        System.out.print("New Date: ");
+        dates[index] = exp.nextLine();
+
+        saveData();
+        checkBudgetReminder();
+
+        System.out.println("Expense updated successfully!");
+    }
+
+    static void deleteExpense() {
+        System.out.print("Enter Expense ID to delete: ");
+        int deleteId = exp.nextInt();
+
+        int index = findId(deleteId);
+
+        if (index == -1) {
+            System.out.println("Expense ID not found.");
+            return;
+        }
+
+        // shift items left
+        for (int j = index; j < count - 1; j++) {
+            ids[j] = ids[j + 1];
+            names[j] = names[j + 1];
+            amounts[j] = amounts[j + 1];
+            categories[j] = categories[j + 1];
+            dates[j] = dates[j + 1];
+        }
+
+        count--;
+        saveData();
+        checkBudgetReminder();
+
+        System.out.println("Expense deleted successfully!");
+    }
+
+    static void setBudget() {
+        System.out.print("Enter your budget: ");
+        budget = exp.nextDouble();
+        exp.nextLine();
+
+        saveBudget();
+        System.out.println("Budget updated successfully!");
+    }
+
+    static void viewBudget() {
+        double total = totalSpent();
+        System.out.println("Your Budget: PHP " + budget);
+        System.out.println("Total Spent: PHP " + total);
+        System.out.println("Remaining: PHP " + (budget - total));
+    }
+
+    static void checkBudgetReminder() {
+        if (budget <= 0) return;
+
+        double total = totalSpent();
+
+        if (total > budget) {
+            System.out.println("⚠ WARNING: Your budget has been EXCEEDED!");
+        } else if (total >= budget * 0.9) {
+            System.out.println("⚠ NOTICE: You reached 90% of your budget.");
+        }
+    }
+
+    // FILE SAVE
+    static void saveData() {
+        try (PrintWriter pw = new PrintWriter(new FileWriter("expenses.txt"))) {
+            for (int i = 0; i < count; i++) {
+                pw.println(ids[i] + "," + names[i] + "," + categories[i] + "," + amounts[i] + "," + dates[i]);
+            }
+        } catch (Exception e) {}
+    }
+
+    static void loadData() {
+        try (Scanner file = new Scanner(new File("expenses.txt"))) {
+            while (file.hasNextLine()) {
+                String[] p = file.nextLine().split(",");
+                ids[count] = Integer.parseInt(p[0]);
+                names[count] = p[1];
+                categories[count] = p[2];
+                amounts[count] = Double.parseDouble(p[3]);
+                dates[count] = p[4];
+                count++;
+            }
+        } catch (Exception e) {}
+    }
+
+    static void saveBudget() {
+        try (PrintWriter pw = new PrintWriter(new FileWriter("budget.txt"))) {
+            pw.println(budget);
+        } catch (Exception e) {}
+    }
+
+    static void loadBudget() {
+        try (Scanner file = new Scanner(new File("budget.txt"))) {
+            budget = file.nextDouble();
+        } catch (Exception e) {}
+    }
+
+    static int findId(int id) {
+        for (int i = 0; i < count; i++) {
+            if (ids[i] == id) return i;
+        }
+        return -1;
+    }
+
+    static double totalSpent() {
+        double t = 0;
+        for (int i = 0; i < count; i++) t += amounts[i];
+        return t;
+    }
+
+    static void saveAll() {
+        saveData();
+        saveBudget();
+        System.out.println("Successfully saved. Goodbye!");
+    }
+}
